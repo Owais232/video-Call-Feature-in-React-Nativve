@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Button, StyleSheet, Alert } from 'react-native';
+import { View, Alert, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import {
   RTCView,
   mediaDevices,
@@ -10,6 +10,7 @@ import {
 import firestore from '@react-native-firebase/firestore';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { addCall, getCall, deleteCall } from './firestoreService';
+import { useNavigation } from '@react-navigation/native';
 
 interface User {
   userId: string;
@@ -30,10 +31,11 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
 
-  // Use auth().currentUser safely by checking if it's not null
   const currentUser = auth().currentUser as FirebaseAuthTypes.User | null;
   const pc = useRef<RTCPeerConnection>(new RTCPeerConnection({ iceServers: [] }));
   const callId = currentUser ? `${currentUser.uid}_${selectedUser.userId}` : '';
+  
+  const navigation = useNavigation(); // Added for navigation
 
   useEffect(() => {
     if (!currentUser) {
@@ -81,7 +83,6 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
         }
       });
 
-    // ICE candidate event handler
     pc.current.onicecandidate = (event: any) => {
       if (event.candidate) {
         firestore()
@@ -93,8 +94,7 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
       }
     };
 
-    // Track event handler
-    pc.current.ontrack = (event : any) => {
+    pc.current.ontrack = (event: any) => {
       setRemoteStream(event.streams[0]);
     };
 
@@ -115,6 +115,17 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
     }
   };
 
+  const handleEndCall = async () => {
+    try {
+      await deleteCall(callId); // End the call in Firestore
+      pc.current.close(); // Close the peer connection
+      navigation.goBack(); // Navigate back to the previous screen
+    } catch (error) {
+      console.error('Error ending the call: ', error);
+      Alert.alert('Error', 'Failed to end the call');
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* Local Stream */}
@@ -125,8 +136,16 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
       {remoteStream && (
         <RTCView style={styles.remoteStream} streamURL={remoteStream.toURL()} />
       )}
-      <Button title="End Call" onPress={() => deleteCall(callId)} />
-      <Button title="Call" onPress={handleCall} />
+
+      {/* Call and End Call buttons using Text */}
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity style={styles.callButton} onPress={handleCall}>
+          <Text style={styles.callButtonText}>Call</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.endCallButton} onPress={handleEndCall}>
+          <Text style={styles.endCallButtonText}>End Call</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -134,14 +153,47 @@ const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
   },
   localStream: {
     width: '100%',
-    height: '50%',
+    height: '40%',
+    backgroundColor: '#1f1f1f',
   },
   remoteStream: {
     width: '100%',
-    height: '50%',
+    height: '40%',
+    backgroundColor: '#1f1f1f',
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    width: '80%',
+    marginVertical: 20,
+  },
+  callButton: {
+    backgroundColor: '#34C759',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  endCallButton: {
+    backgroundColor: '#FF3B30',
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 25,
+  },
+  callButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  endCallButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
   },
 });
 
