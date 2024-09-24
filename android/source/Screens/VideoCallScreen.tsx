@@ -11,6 +11,10 @@ import firestore from '@react-native-firebase/firestore';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import { addCall, getCall, deleteCall } from './firestoreService';
 import { useNavigation } from '@react-navigation/native';
+import { RootStackParamList } from './type'
+import { StackScreenProps } from '@react-navigation/stack';
+
+type VideoCallScreenProps = StackScreenProps<RootStackParamList, 'VideoCallScreen'>;
 
 interface User {
   userId: string;
@@ -18,15 +22,8 @@ interface User {
   lastName: string;
 }
 
-interface VideoCallScreenProps {
-  route: {
-    params: {
-      selectedUser: User;
-    };
-  };
-}
 
-const VideoCallScreen = ({ route }: VideoCallScreenProps) => {
+const VideoCallScreen = ({ route }) => {
   const { selectedUser } = route.params;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
